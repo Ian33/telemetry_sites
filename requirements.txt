@@ -1,0 +1,9 @@
+
+gunicorn
+sodapy
+pandas
+requests
+datetime
+plotly
+dash==2.15.0
+io
