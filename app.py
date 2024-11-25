@@ -48,7 +48,7 @@ app.layout = html.Div(
                             className="row",
                             children=[
                                 html.P("""select a parameter"""),
-                                html.Div(className="div-for-dropdown",children=[dcc.Dropdown(id="parameter",options=[{"label": "Discharge", "value": "discharge"},{"label": "Battery Volts", "value": "battery_volts"},],value="battery_volts",clearable=False,),],),
+                                #html.Div(className="div-for-dropdown",children=[dcc.Dropdown(id="parameter",options=[{"label": "Discharge", "value": "discharge"},{"label": "Battery Volts", "value": "battery_volts"},],value="battery_volts",clearable=False,),],),
                                 #html.Div(className="div-for-dropdown",children=[dcc.Dropdown(id="bar-selector",multi=True,)],),
                             ],
                         ),
