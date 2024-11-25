@@ -64,11 +64,12 @@ app.layout = html.Div(
                     ],),
             ],
         ),
+        
+    ],
         dcc.Store(id = 'metadata'), # store site metadata
         dcc.Store(id = 'gagers'), # store gager list
         dcc.Store(id = 'telemetry'), # store telemetry
         dcc.Store(id = 'last_discharge_data'), # stores last data value
-    ]
 )
 # Define the layout of the dashboard
 @app.callback(
