@@ -55,7 +55,7 @@ app.layout = html.Div(
                             className="row",
                             children=[
                                 html.P("""select a parameter"""),
-                                #html.Div(className="div-for-dropdown",children=[dcc.Dropdown(id="parameter",options=[{"label": "Discharge", "value": "discharge"},{"label": "Battery Volts", "value": "battery_volts"},],value="battery_volts",clearable=False,),],),
+                                html.Div(className="div-for-dropdown",children=[dcc.Dropdown(id="parameter",options=[{"label": "discharge", "value": "discharge"},{"label": "battery volts", "value": "battery_volts"},],value="battery_volts",clearable=False,),],),
                                 #html.Div(className="div-for-dropdown",children=[dcc.Dropdown(id="bar-selector",multi=True,)],),
                             ],
                         ),
@@ -87,7 +87,7 @@ app.layout = html.Div(
         dcc.Store(id = 'metadata'), # store site metadata
         dcc.Store(id = 'gagers'), # store gager list
         dcc.Store(id = 'telemetry'), # store telemetry
-        dcc.Store(id = 'last_discharge_data'), # stores last data value
+        dcc.Store(id = 'last_data'), # stores last data value
     ],
         
 )
@@ -105,12 +105,20 @@ def site_metadata(n_clicks):
     socrataUserPw = (f"{socrata_api_id}:{socrata_api_secret}").encode('utf-8')
     base64AuthToken = base64.b64encode(socrataUserPw)
     headers = {'accept': '*/*', 'Authorization': 'Basic ' + base64AuthToken.decode('utf-8')}
+    query_params = {
+        "$select": "site, latitude, longitude, gager",
+        "$where": f"telemetry_status == 'True'"
+    }
+    
+    encoded_query = urlencode(query_params)
+    dataset_url = f"{dataset_url}?{encoded_query}"
+    
     response = requests.get(dataset_url, headers=headers)
 
     if response.status_code == 200:
         data = response.json()
         df = pd.DataFrame(data)
-       
+        
         gager_list = df["gager"].drop_duplicates().tolist()
         df = df.to_json(orient="split")
     else:
@@ -120,42 +128,49 @@ def site_metadata(n_clicks):
 
 @app.callback(
     Output('telemetry', 'data'),
-    Input('refresh-button', 'n_clicks')
+    Input('metadata', 'data'),
 )
-def telemetry_status(n_clicks):
-    socrata_database_id = "gzfg-8xtp"
-    dataset_url = f"https://data.kingcounty.gov/resource/{socrata_database_id}.json"
-    socrataUserPw = (f"{socrata_api_id}:{socrata_api_secret}").encode('utf-8')
-    base64AuthToken = base64.b64encode(socrataUserPw)
-    headers = {'accept': '*/*', 'Authorization': 'Basic ' + base64AuthToken.decode('utf-8')}
+def telemetry_status(metadata):
+    """triggers if metadata is changed (refresh is clicked)"""
+    if metadata:
+        socrata_database_id = "gzfg-8xtp"
+        dataset_url = f"https://data.kingcounty.gov/resource/{socrata_database_id}.json"
+        socrataUserPw = (f"{socrata_api_id}:{socrata_api_secret}").encode('utf-8')
+        base64AuthToken = base64.b64encode(socrataUserPw)
+        headers = {'accept': '*/*', 'Authorization': 'Basic ' + base64AuthToken.decode('utf-8')}
 
-    today = datetime.now()
-    yesterday = today - timedelta(days=1)
-    query_params = {
-        "$select": "site, datetime, battery_volts",
-        "$where": f"datetime >= '{yesterday.strftime('%Y-%m-%d')}' AND datetime < '{today.strftime('%Y-%m-%d')}'"
-    }
-    encoded_query = urlencode(query_params)
-    dataset_url = f"{dataset_url}?{encoded_query}"
-    
-    response = requests.get(dataset_url, headers=headers)
-    if response.status_code == 200:
-        data = response.json()
-        df = pd.DataFrame(data)
-        df = df.to_json(orient="split")
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        query_params = {
+            "$select": "site, datetime as voltage_date, battery_volts",
+            "$where": f"datetime >= '{yesterday.strftime('%Y-%m-%d')}' AND datetime < '{today.strftime('%Y-%m-%d')}'"
+        }
+        encoded_query = urlencode(query_params)
+        dataset_url = f"{dataset_url}?{encoded_query}"
+        
+        response = requests.get(dataset_url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            df = pd.DataFrame(data)
+            df["voltage_date"] = pd.to_datetime(df['voltage_date'])
+            df["voltage_date"]  = df["voltage_date"].dt.strftime('%Y-%m-%d %H:%M')
+            df = df.to_json(orient="split")
+            return df
+        else:
+            return dash.no_update
+        
     else:
         return dash.no_update
-    return df
 
 
 
 @app.callback(
-    Output('last_discharge_data', 'data'),
-    Input('refresh-button', 'n_clicks'),
+    Output('last_data', 'data'),
     Input('metadata', 'data'),
+    Input("parameter", 'value')
 )
-def last_data(n_clicks, metadata):
-    if metadata:
+def last_data(metadata, parameter):
+    if metadata and parameter and parameter == "discharge":
         #metadata = pd.DataFrame(metadata)
         #metadata = pd.read_json(metadata, orient="split")
         metadata = pd.read_json(StringIO(metadata), orient="split")
@@ -174,8 +189,9 @@ def last_data(n_clicks, metadata):
         today = datetime.now()
         yesterday = today - timedelta(days=2)
         query_params = {
-            "$select": "site_id as site, MAX(datetime) as last_log",
-            "$group": "site"
+            "$select": f"site_id as site, datetime as last_log, corrected_data as {parameter}",
+            "$where": f"parameter == '{parameter}' AND last_log >= '{yesterday.strftime('%Y-%m-%d')}' AND last_log < '{today.strftime('%Y-%m-%d')}'",
+            #"$group": "site"
             
         }
         
@@ -189,10 +205,12 @@ def last_data(n_clicks, metadata):
             data = response.json()
             
             df = pd.DataFrame(data)
-            
             df["last_log"] = pd.to_datetime(df['last_log'])
-            df["last_log"]  = df["last_log"].dt.strftime('%Y-%m-%d %H:%M')
+            df = df.loc[df.groupby('site')['last_log'].idxmax()]
             
+            df["last_log"]  = df["last_log"].dt.strftime('%Y-%m-%d %H:%M')
+            print("int discharge df")
+            print(df)
         
             df = df.to_json(orient="split")
             return df
@@ -206,41 +224,46 @@ def last_data(n_clicks, metadata):
     Output('battery-graph', 'figure'),
     Input('metadata', 'data'),
     Input('telemetry', 'data'),
-    Input('last_discharge_data', 'data'),
-    Input('refresh-button', 'n_clicks')
+    Input('last_data', 'data'),
+    Input("parameter", 'value'),
 )
-def create_battery_graph(metadata, telemetry, last_discharge_data, n_clicks):
+def create_battery_graph(metadata, telemetry, last_data, parameter):
     
    
     
-    if metadata and telemetry and last_discharge_data:
+    if metadata and telemetry:
         metadata = pd.read_json(StringIO(metadata), orient="split")
         telemetry = pd.read_json(StringIO(telemetry), orient="split")
-        last_discharge_data = pd.read_json(StringIO(last_discharge_data), orient="split")
-
-        battery_site_status = metadata.merge(telemetry, on="site")
-        battery_site_status = battery_site_status.merge(last_discharge_data, on="site", how = "left")
-        battery_site_status = battery_site_status.fillna("")
+        df = metadata.merge(telemetry, on="site", how = "left")
+    
+        print("base data")
+        print(df)
+        if last_data and parameter == "discharge":
+            last_data = pd.read_json(StringIO(last_data), orient="split")
+            df = last_data.merge(df, on="site", how = "left") # left would include all sides and discharge data
+            print("discharge")
+            print(df)
+        df = df.fillna("")
         
        
-        battery_site_status["longitude"] = battery_site_status["longitude"].astype(float)
-        battery_site_status["latitude"] = battery_site_status["latitude"].astype(float)
-        battery_site_status["battery_volts"] = battery_site_status["battery_volts"].astype(float)
+        df["longitude"] = pd.to_numeric(df['longitude'], errors='coerce')
+        df["latitude"] = pd.to_numeric(df['latitude'], errors='coerce')
+        df["battery_volts"] = pd.to_numeric(df['battery_volts'], errors='coerce')
         
-        battery_site_status['color_category'] = "grey"
+        df['color_category'] = "grey"
 
         
-        battery_site_status.loc[battery_site_status["battery_volts"] < 11.8, 'color_category'] = 11.9
-        battery_site_status.loc[(battery_site_status["battery_volts"] >= 11.8) & (battery_site_status["battery_volts"] < 12.0), 'color_category'] = 12.0
-        battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.0) & (battery_site_status["battery_volts"] < 12.2), 'color_category'] = 12.2
-        battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.2) & (battery_site_status["battery_volts"] < 12.4), 'color_category'] = 12.4
-        battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.4) & (battery_site_status["battery_volts"] < 12.6), 'color_category'] = 12.6
-        battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.6) & (battery_site_status["battery_volts"] < 13), 'color_category'] = 12.9
-        battery_site_status.loc[battery_site_status["battery_volts"] >= 13, 'color_category'] = 13
+        df.loc[df["battery_volts"] < 11.8, 'color_category'] = 11.9
+        df.loc[(df["battery_volts"] >= 11.8) & (df["battery_volts"] < 12.0), 'color_category'] = 12.0
+        df.loc[(df["battery_volts"] >= 12.0) & (df["battery_volts"] < 12.2), 'color_category'] = 12.2
+        df.loc[(df["battery_volts"] >= 12.2) & (df["battery_volts"] < 12.4), 'color_category'] = 12.4
+        df.loc[(df["battery_volts"] >= 12.4) & (df["battery_volts"] < 12.6), 'color_category'] = 12.6
+        df.loc[(df["battery_volts"] >= 12.6) & (df["battery_volts"] < 13), 'color_category'] = 12.9
+        df.loc[df["battery_volts"] >= 13, 'color_category'] = 13
 
-        battery_site_status['color_category'] = battery_site_status['color_category'].astype(float)
+        df['color_category'] = pd.to_numeric(df['color_category'], errors='coerce')
 
-        print(battery_site_status)
+    
         
         """
            "< 11.8": "darkred",
@@ -260,12 +283,16 @@ def create_battery_graph(metadata, telemetry, last_discharge_data, n_clicks):
         #                      "< 12.5": "orange",
         #                         "12.5 +": "blue",
         #                     },
-        fig = px.scatter_map(battery_site_status,
-                            lat=battery_site_status["latitude"],
-                            lon=battery_site_status["longitude"],
-                            color=battery_site_status['color_category'],
+        if "discharge" in df.columns:
+            hover_data = {"discharge": True, "last_log": True, "voltage_date": False, "battery_volts": True, "latitude": False, "longitude": False, "color_category": False}
+        if not "discharge" in df.columns:
+             hover_data = {"voltage_date": True, "battery_volts": True, "latitude": False, "longitude": False, "color_category": False}
+        fig = px.scatter_map(df,
+                            lat=df["latitude"],
+                            lon=df["longitude"],
+                            color=df['color_category'],
                             hover_name="site",
-                            hover_data={"last_log": True, "battery_volts": True, "latitude": False, "longitude": False, "color_category": False},
+                            hover_data=hover_data,
                             color_continuous_scale=px.colors.sequential.GnBu,
                 
                             zoom=9)
