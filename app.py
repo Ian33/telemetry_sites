@@ -141,7 +141,8 @@ def telemetry_status(n_clicks):
     Input('metadata', 'data'),
 )
 def last_data(n_clicks, metadata):
-    metadata = pd.read_json(StringIO(metadata), orient="split")
+    metadata = pd.read_json(metadata, orient="split")
+    #metadata = pd.read_json(StringIO(metadata), orient="split")
     site_list = metadata["site"].tolist()
     
 
