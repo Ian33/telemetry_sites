@@ -1,6 +1,6 @@
 # Deploying a Dash Application on Render
 
-This repository will guide you through the process of deploying a Python Dash application on Render using a Github remote repository.
+This repository is designed to deploy a Python Dash App on Render
 
 ## Prerequisites
 1. A Render account. If you do not have one, you can create it by signing up at [https://render.com/](https://render.com/).
@@ -51,6 +51,8 @@ $ gunicorn app:server
 ```
 
 4. Click the "Create Web Service" button to create the service.
+
+5. Add .env file to Render, the .env file is in .gitignore and will not be commented/uploaded to github
 
 ## Step 3: Deploying the service
 * After you configure the service, click the "New Deploy" button to deploy the service.

@@ -5,5 +5,5 @@ pandas
 requests
 datetime
 plotly==5.24.0
-dash==2.15.0
+dash
 dotenv
