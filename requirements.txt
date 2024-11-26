@@ -4,5 +4,6 @@ sodapy
 pandas
 requests
 datetime
-plotly
+plotly==5.24.0
 dash==2.15.0
+dotenv

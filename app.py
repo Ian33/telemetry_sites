@@ -11,24 +11,23 @@ import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
 from io import StringIO
+import os
+from dotenv import load_dotenv
+
+# py/python -m venv venv
 # .venv\Scripts\activate
 # pip install -r requirements.txt
+# activate venv and run program py app.py
 
 
 app = dash.Dash(__name__, meta_tags=[{"name": "viewport", "content": "width=device-width"}],)
 app.title = "Site Viewer"
 server = app.server
 
+load_dotenv()
+socrata_api_id = os.getenv("socrata_api_id")
+socrata_api_secret = os.getenv("socrata_api_secret")
 
-
-"""app.layout = html.Div(children = [html.Div(className = "row", children = html.Div(html.H1("Battery Voltage Status of Sites"),)), 
-                                  html.Div(className = "graph", children = html.Div(dcc.Graph(id='battery-graph'),)),
-                                  html.Div(className = "row", children = html.Div(html.Button('Refresh Data', id='refresh-button', n_clicks=0))),
-                                  dcc.Store(id = 'metadata'), # store site metadata
-                                  dcc.Store(id = 'gagers'), # store gager list
-                                  dcc.Store(id = 'telemetry'), # store telemetry
-                                  dcc.Store(id = 'last_discharge_data'), # stores last data value
-                                  ],)"""
 
 app.layout = html.Div(
     children=[
@@ -80,8 +79,9 @@ app.layout = html.Div(
 # Define functions as in your original code
 def site_metadata(n_clicks):
     """reads site meta data, returns sites and gager list"""
-    socrata_api_id = "37ja57noqzsdkkeo5ox34pfzm"
-    socrata_api_secret = "4i1u1tyb6mfivhnw2fqhhsrim675gurrw8g1zegdwomix9xj91"
+    #socrata_api_id = "37ja57noqzsdkkeo5ox34pfzm"
+    #socrata_api_secret = "4i1u1tyb6mfivhnw2fqhhsrim675gurrw8g1zegdwomix9xj91"
+    
     socrata_database_id = "g7er-dgc7"
     dataset_url = f"https://data.kingcounty.gov/resource/{socrata_database_id}.json"
     socrataUserPw = (f"{socrata_api_id}:{socrata_api_secret}").encode('utf-8')
@@ -105,8 +105,8 @@ def site_metadata(n_clicks):
     Input('refresh-button', 'n_clicks')
 )
 def telemetry_status(n_clicks):
-    socrata_api_id = "37ja57noqzsdkkeo5ox34pfzm"
-    socrata_api_secret = "4i1u1tyb6mfivhnw2fqhhsrim675gurrw8g1zegdwomix9xj91"
+    #socrata_api_id = "37ja57noqzsdkkeo5ox34pfzm"
+    #socrata_api_secret = "4i1u1tyb6mfivhnw2fqhhsrim675gurrw8g1zegdwomix9xj91"
     socrata_database_id = "gzfg-8xtp"
     dataset_url = f"https://data.kingcounty.gov/resource/{socrata_database_id}.json"
     socrataUserPw = (f"{socrata_api_id}:{socrata_api_secret}").encode('utf-8')
@@ -142,18 +142,9 @@ def last_data(n_clicks, metadata):
     metadata = pd.read_json(StringIO(metadata), orient="split")
     site_list = metadata["site"].tolist()
     
-    
-    #dataset_url = f"https://data.kingcounty.gov/resource/{socrata_database_id}.json"
-    #client = Socrata("data.kingcounty.gov", None)
-   
-    #results = client.get(
-    #    "hkim-5ysi",
-    #    select="site_id, MAX(datetime) AS datetime, corrected_data",
-    #    where="parameter='discharge",
-    #    group="site_id")
 
-    socrata_api_id = "37ja57noqzsdkkeo5ox34pfzm"
-    socrata_api_secret = "4i1u1tyb6mfivhnw2fqhhsrim675gurrw8g1zegdwomix9xj91"
+    #socrata_api_id = "37ja57noqzsdkkeo5ox34pfzm"
+    #socrata_api_secret = "4i1u1tyb6mfivhnw2fqhhsrim675gurrw8g1zegdwomix9xj91"
     socrata_database_id = "hkim-5ysi"
     dataset_url = f"https://data.kingcounty.gov/resource/{socrata_database_id}.json"
     socrataUserPw = (f"{socrata_api_id}:{socrata_api_secret}").encode('utf-8')
