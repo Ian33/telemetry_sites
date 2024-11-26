@@ -10,7 +10,7 @@ import plotly.express as px
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
-from io import StringIO
+#from io import StringIO
 import os
 from dotenv import load_dotenv
 
@@ -192,12 +192,14 @@ def last_data(n_clicks, metadata):
     Input('refresh-button', 'n_clicks')
 )
 def create_battery_graph(metadata, telemetry, last_discharge_data, n_clicks):
-    metadata = pd.read_json(StringIO(metadata), orient="split")
+    #metadata = pd.read_json(StringIO(metadata), orient="split")
+    #telemetry = pd.read_json(StringIO(telemetry), orient="split")
+    #last_discharge_data = pd.read_json(StringIO(last_discharge_data), orient="split")
     
-    telemetry = pd.read_json(StringIO(telemetry), orient="split")
-    
-    last_discharge_data = pd.read_json(StringIO(last_discharge_data), orient="split")
-    
+    metadata = pd.read_json(metadata, orient="split")
+    telemetry = pd.read_json(telemetry, orient="split")
+    last_discharge_data = pd.read_json(last_discharge_data, orient="split")
+
     battery_site_status = metadata.merge(telemetry, on="site")
     battery_site_status = battery_site_status.merge(last_discharge_data, on="site", how = "left")
     battery_site_status = battery_site_status.fillna("")
