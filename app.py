@@ -10,11 +10,11 @@ import plotly.express as px
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
-#from io import StringIO
+from io import StringIO
 import os
 from dotenv import load_dotenv
 
-# py/python -m venv venv
+# py/python -m venv .venv
 # .venv\Scripts\activate
 # pip install -r requirements.txt
 # activate venv and run program py app.py
@@ -141,48 +141,51 @@ def telemetry_status(n_clicks):
     Input('metadata', 'data'),
 )
 def last_data(n_clicks, metadata):
-    metadata = pd.read_json(metadata, orient="split")
-    #metadata = pd.read_json(StringIO(metadata), orient="split")
-    site_list = metadata["site"].tolist()
-    
+    if metadata:
+        #metadata = pd.DataFrame(metadata)
+        #metadata = pd.read_json(metadata, orient="split")
+        metadata = pd.read_json(StringIO(metadata), orient="split")
+        site_list = metadata["site"].tolist()
+        
 
-    #socrata_api_id = "37ja57noqzsdkkeo5ox34pfzm"
-    #socrata_api_secret = "4i1u1tyb6mfivhnw2fqhhsrim675gurrw8g1zegdwomix9xj91"
-    socrata_database_id = "hkim-5ysi"
-    dataset_url = f"https://data.kingcounty.gov/resource/{socrata_database_id}.json"
-    socrataUserPw = (f"{socrata_api_id}:{socrata_api_secret}").encode('utf-8')
-    base64AuthToken = base64.b64encode(socrataUserPw)
-    headers = {'accept': '*/*', 'Authorization': 'Basic ' + base64AuthToken.decode('utf-8')}
+        #socrata_api_id = "37ja57noqzsdkkeo5ox34pfzm"
+        #socrata_api_secret = "4i1u1tyb6mfivhnw2fqhhsrim675gurrw8g1zegdwomix9xj91"
+        socrata_database_id = "hkim-5ysi"
+        dataset_url = f"https://data.kingcounty.gov/resource/{socrata_database_id}.json"
+        socrataUserPw = (f"{socrata_api_id}:{socrata_api_secret}").encode('utf-8')
+        base64AuthToken = base64.b64encode(socrataUserPw)
+        headers = {'accept': '*/*', 'Authorization': 'Basic ' + base64AuthToken.decode('utf-8')}
 
-  
-    today = datetime.now()
-    yesterday = today - timedelta(days=2)
-    query_params = {
-        "$select": "site_id as site, MAX(datetime) as last_log",
-        "$group": "site"
-        
-    }
     
-    #"$where": f"last_log >= '{yesterday.strftime('%Y-%m-%d')}' AND last_log < '{today.strftime('%Y-%m-%d')}'"
-    #"$where": f"datetime >= '{yesterday.strftime('%Y-%m-%d')}' AND datetime < '{today.strftime('%Y-%m-%d')}'"
-    encoded_query = urlencode(query_params)
-    dataset_url = f"{dataset_url}?{encoded_query}"
-    
-    response = requests.get(dataset_url, headers=headers)
-    if response.status_code == 200:
-        data = response.json()
+        today = datetime.now()
+        yesterday = today - timedelta(days=2)
+        query_params = {
+            "$select": "site_id as site, MAX(datetime) as last_log",
+            "$group": "site"
+            
+        }
         
-        df = pd.DataFrame(data)
+        #"$where": f"last_log >= '{yesterday.strftime('%Y-%m-%d')}' AND last_log < '{today.strftime('%Y-%m-%d')}'"
+        #"$where": f"datetime >= '{yesterday.strftime('%Y-%m-%d')}' AND datetime < '{today.strftime('%Y-%m-%d')}'"
+        encoded_query = urlencode(query_params)
+        dataset_url = f"{dataset_url}?{encoded_query}"
         
-        df["last_log"] = pd.to_datetime(df['last_log'])
-        df["last_log"]  = df["last_log"].dt.strftime('%Y-%m-%d %H:%M')
+        response = requests.get(dataset_url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            
+            df = pd.DataFrame(data)
+            
+            df["last_log"] = pd.to_datetime(df['last_log'])
+            df["last_log"]  = df["last_log"].dt.strftime('%Y-%m-%d %H:%M')
+            
         
-      
-        df = df.to_json(orient="split")
-        return df
+            df = df.to_json(orient="split")
+            return df
+        else:
+            return dash.no_update
     else:
         return dash.no_update
-  
 
 
 @app.callback(
@@ -197,59 +200,66 @@ def create_battery_graph(metadata, telemetry, last_discharge_data, n_clicks):
     #telemetry = pd.read_json(StringIO(telemetry), orient="split")
     #last_discharge_data = pd.read_json(StringIO(last_discharge_data), orient="split")
     
-    metadata = pd.read_json(metadata, orient="split")
-    telemetry = pd.read_json(telemetry, orient="split")
-    last_discharge_data = pd.read_json(last_discharge_data, orient="split")
+    #metadata = pd.read_json(metadata, orient="split")
+    #telemetry = pd.read_json(telemetry, orient="split")
+    #last_discharge_data = pd.read_json(last_discharge_data, orient="split")
 
-    battery_site_status = metadata.merge(telemetry, on="site")
-    battery_site_status = battery_site_status.merge(last_discharge_data, on="site", how = "left")
-    battery_site_status = battery_site_status.fillna("")
-    
-    print(battery_site_status)
-    battery_site_status["longitude"] = battery_site_status["longitude"].astype(float)
-    battery_site_status["latitude"] = battery_site_status["latitude"].astype(float)
-    battery_site_status["battery_volts"] = battery_site_status["battery_volts"].astype(float)
-    
-    battery_site_status['color_category'] = "grey"
-    battery_site_status.loc[battery_site_status["battery_volts"] < 11.5, 'color_category'] = "< 11.5"
-    battery_site_status.loc[(battery_site_status["battery_volts"] >= 11.5) & (battery_site_status["battery_volts"] < 12.0), 'color_category'] = "< 12"
-    battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.0) & (battery_site_status["battery_volts"] < 12.3), 'color_category'] = "< 12.3"
-    battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.3) & (battery_site_status["battery_volts"] < 12.5), 'color_category'] = "< 12.5"
-    battery_site_status.loc[battery_site_status["battery_volts"] >= 12.5, 'color_category'] = "12.5 +"
-    
-    #fig = px.scatter(battery_site_status, y="latitude", x="longitude", color="battery_volts")
-                          
-    #color_discrete_map={
-    #                         "grey": "grey",
-    #                      "< 11.5": "red",
-    #                      "< 12": "darkred",
-    #                      "< 12.3": "darkorange",
-    #                      "< 12.5": "orange",
-    #                         "12.5 +": "blue",
-    #                     },
-    fig = px.scatter_map(battery_site_status,
-                         lat=battery_site_status["latitude"],
-                         lon=battery_site_status["longitude"],
-                         color=battery_site_status["color_category"],
-                         hover_name="site",
-                         hover_data={"last_log": True, "battery_volts": True, "latitude": False, "longitude": False, "color_category": False},
-                          zoom=9)
+    #df = pd.DataFrame(data)
+    if metadata and telemetry and last_discharge_data:
+        metadata = pd.read_json(StringIO(metadata), orient="split")
+        telemetry = pd.read_json(StringIO(telemetry), orient="split")
+        last_discharge_data = pd.read_json(StringIO(last_discharge_data), orient="split")
 
-    fig.update_layout(
-    legend=dict(
-        orientation="h",
-        yanchor="bottom",
-        y=0,  # Position at the bottom
-        xanchor="center",
-        x=0.5  # Center horizontally
-    ),
-    autosize=True,
-    margin=dict(l=0, r=0, t=0, b=0),
-    #mapbox_style="open-street-map"  # Add map style if not already defined
-)
-    return fig
+        battery_site_status = metadata.merge(telemetry, on="site")
+        battery_site_status = battery_site_status.merge(last_discharge_data, on="site", how = "left")
+        battery_site_status = battery_site_status.fillna("")
+        
+        print(battery_site_status)
+        battery_site_status["longitude"] = battery_site_status["longitude"].astype(float)
+        battery_site_status["latitude"] = battery_site_status["latitude"].astype(float)
+        battery_site_status["battery_volts"] = battery_site_status["battery_volts"].astype(float)
+        
+        battery_site_status['color_category'] = "grey"
+        battery_site_status.loc[battery_site_status["battery_volts"] < 11.5, 'color_category'] = "< 11.5"
+        battery_site_status.loc[(battery_site_status["battery_volts"] >= 11.5) & (battery_site_status["battery_volts"] < 12.0), 'color_category'] = "< 12"
+        battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.0) & (battery_site_status["battery_volts"] < 12.3), 'color_category'] = "< 12.3"
+        battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.3) & (battery_site_status["battery_volts"] < 12.5), 'color_category'] = "< 12.5"
+        battery_site_status.loc[battery_site_status["battery_volts"] >= 12.5, 'color_category'] = "12.5 +"
+        
+        #fig = px.scatter(battery_site_status, y="latitude", x="longitude", color="battery_volts")
+                            
+        #color_discrete_map={
+        #                         "grey": "grey",
+        #                      "< 11.5": "red",
+        #                      "< 12": "darkred",
+        #                      "< 12.3": "darkorange",
+        #                      "< 12.5": "orange",
+        #                         "12.5 +": "blue",
+        #                     },
+        fig = px.scatter_map(battery_site_status,
+                            lat=battery_site_status["latitude"],
+                            lon=battery_site_status["longitude"],
+                            color=battery_site_status["color_category"],
+                            hover_name="site",
+                            hover_data={"last_log": True, "battery_volts": True, "latitude": False, "longitude": False, "color_category": False},
+                            zoom=9)
 
+        fig.update_layout(
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=0,  # Position at the bottom
+            xanchor="center",
+            x=0.5  # Center horizontally
+        ),
+        autosize=True,
+        margin=dict(l=0, r=0, t=0, b=0),
+        #mapbox_style="open-street-map"  # Add map style if not already defined
+        )
+        return fig
 
+    else:
+        return dash.no_update
 
 if __name__ == '__main__':
     app.run_server(debug=False)
