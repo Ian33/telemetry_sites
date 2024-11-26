@@ -19,7 +19,8 @@ from dotenv import load_dotenv
 # pip install -r requirements.txt
 # activate venv and run program py app.py
 
-# requirements ==2.15.0
+# requirements plotly==2.15.0
+# dotenv
 
 app = dash.Dash(__name__, meta_tags=[{"name": "viewport", "content": "width=device-width"}],)
 app.title = "Site Viewer"
