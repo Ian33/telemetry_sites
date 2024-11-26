@@ -211,6 +211,8 @@ def last_data(n_clicks, metadata):
 )
 def create_battery_graph(metadata, telemetry, last_discharge_data, n_clicks):
     
+   
+    
     if metadata and telemetry and last_discharge_data:
         metadata = pd.read_json(StringIO(metadata), orient="split")
         telemetry = pd.read_json(StringIO(telemetry), orient="split")
@@ -220,18 +222,34 @@ def create_battery_graph(metadata, telemetry, last_discharge_data, n_clicks):
         battery_site_status = battery_site_status.merge(last_discharge_data, on="site", how = "left")
         battery_site_status = battery_site_status.fillna("")
         
-        print(battery_site_status)
+       
         battery_site_status["longitude"] = battery_site_status["longitude"].astype(float)
         battery_site_status["latitude"] = battery_site_status["latitude"].astype(float)
         battery_site_status["battery_volts"] = battery_site_status["battery_volts"].astype(float)
         
         battery_site_status['color_category'] = "grey"
-        battery_site_status.loc[battery_site_status["battery_volts"] < 11.5, 'color_category'] = "< 11.5"
-        battery_site_status.loc[(battery_site_status["battery_volts"] >= 11.5) & (battery_site_status["battery_volts"] < 12.0), 'color_category'] = "< 12"
-        battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.0) & (battery_site_status["battery_volts"] < 12.3), 'color_category'] = "< 12.3"
-        battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.3) & (battery_site_status["battery_volts"] < 12.5), 'color_category'] = "< 12.5"
-        battery_site_status.loc[battery_site_status["battery_volts"] >= 12.5, 'color_category'] = "12.5 +"
+
         
+        battery_site_status.loc[battery_site_status["battery_volts"] < 11.8, 'color_category'] = 11.9
+        battery_site_status.loc[(battery_site_status["battery_volts"] >= 11.8) & (battery_site_status["battery_volts"] < 12.0), 'color_category'] = 12.0
+        battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.0) & (battery_site_status["battery_volts"] < 12.2), 'color_category'] = 12.2
+        battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.2) & (battery_site_status["battery_volts"] < 12.4), 'color_category'] = 12.4
+        battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.4) & (battery_site_status["battery_volts"] < 12.6), 'color_category'] = 12.6
+        battery_site_status.loc[(battery_site_status["battery_volts"] >= 12.6) & (battery_site_status["battery_volts"] < 13), 'color_category'] = 12.9
+        battery_site_status.loc[battery_site_status["battery_volts"] >= 13, 'color_category'] = 13
+
+        battery_site_status['color_category'] = battery_site_status['color_category'].astype(float)
+
+        print(battery_site_status)
+        
+        """
+           "< 11.8": "darkred",
+                "< 12": "red",
+                "< 12.2": "orange",
+                "< 12.4": "yellow",
+                "< 12.6": "yellowgreen",
+                "< 13": "green",
+                "13.0 +": "forestgreen"},"""
         #fig = px.scatter(battery_site_status, y="latitude", x="longitude", color="battery_volts")
                             
         #color_discrete_map={
@@ -245,11 +263,14 @@ def create_battery_graph(metadata, telemetry, last_discharge_data, n_clicks):
         fig = px.scatter_map(battery_site_status,
                             lat=battery_site_status["latitude"],
                             lon=battery_site_status["longitude"],
-                            color=battery_site_status["color_category"],
+                            color=battery_site_status['color_category'],
                             hover_name="site",
                             hover_data={"last_log": True, "battery_volts": True, "latitude": False, "longitude": False, "color_category": False},
+                            color_continuous_scale=px.colors.sequential.GnBu,
+                
                             zoom=9)
-
+       
+        fig.update_traces(marker=dict(size=10))
         fig.update_layout(
         legend=dict(
             orientation="h",
@@ -259,9 +280,11 @@ def create_battery_graph(metadata, telemetry, last_discharge_data, n_clicks):
             x=0.5  # Center horizontally
         ),
         autosize=False,  # Disable autosizing to set a custom height
-        height = 1000,
+        height = 800,
+        
          #
         margin=dict(l=0, r=0, t=0, b=0),
+        
         #mapbox_style=py"open-street-map"  # Add map style if not already defined
         )
         return fig
