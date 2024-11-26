@@ -6,6 +6,9 @@ import base64
 from urllib.parse import urlencode
 from datetime import datetime, timedelta
 import plotly.express as px
+from plotly import graph_objs as go
+from plotly.graph_objs import *
+
 #import plotly.graph_objects as go
 import dash
 from dash import dcc, html
@@ -31,14 +34,17 @@ socrata_api_id = os.getenv("socrata_api_id")
 socrata_api_secret = os.getenv("socrata_api_secret")
 
 
+# Plotly mapbox public token
+mapbox_access_token = "pk.eyJ1IjoicGxvdGx5bWFwYm94IiwiYSI6ImNrOWJqb2F4djBnMjEzbG50amg0dnJieG4ifQ.Zme1-Uzoi75IaFbieBDl3A"
+
 app.layout = html.Div(
     children=[
         html.Div(
-            className="row",
+            className="row", 
             children=[
                 # Column for user controls
                 html.Div(
-                    className="four columns div-user-controls",
+                    className="four columns div-user-controls",  # mobil/desktop transition needs eight and 4 column
                     children=[
                         html.H2("Telemetered Sites"),
                         html.P("""displays basic infomation for telemetered sites based on Socrata copy of gData"""),
@@ -59,10 +65,23 @@ app.layout = html.Div(
                     ],
                 ),
                 # Column for app graphs and plots
-                html.Div(className="eight columns div-for-charts bg-grey",children=[
-                    dcc.Graph(id='battery-graph'),
-                    #dcc.Graph(id="histogram"),
-                    ],),
+                
+                #html.Div(className="eight columns div-for-charts bg-grey",children=[
+                #    dcc.Graph(id='battery-graph', responsive = False),
+                #    #dcc.Graph(id="histogram"),
+                #    ],),
+                html.Div(
+                    className="eight columns div-for-charts bg-grey", # mobil/desktop transition needs eight and 4 column
+                    children=[
+                        dcc.Graph(id="battery-graph"),
+                        html.Div(
+                            className="text-padding",
+                            children=[
+                                "placeholder for additional graph"
+                            ],),
+                        # dcc.Graph(id="histogram"),  # Uncomment if needed and adjust layout accordingly
+                    ],
+                ),
             ],
         ),
         dcc.Store(id = 'metadata'), # store site metadata
@@ -81,9 +100,6 @@ app.layout = html.Div(
 # Define functions as in your original code
 def site_metadata(n_clicks):
     """reads site meta data, returns sites and gager list"""
-    #socrata_api_id = "37ja57noqzsdkkeo5ox34pfzm"
-    #socrata_api_secret = "4i1u1tyb6mfivhnw2fqhhsrim675gurrw8g1zegdwomix9xj91"
-    
     socrata_database_id = "g7er-dgc7"
     dataset_url = f"https://data.kingcounty.gov/resource/{socrata_database_id}.json"
     socrataUserPw = (f"{socrata_api_id}:{socrata_api_secret}").encode('utf-8')
@@ -107,8 +123,6 @@ def site_metadata(n_clicks):
     Input('refresh-button', 'n_clicks')
 )
 def telemetry_status(n_clicks):
-    #socrata_api_id = "37ja57noqzsdkkeo5ox34pfzm"
-    #socrata_api_secret = "4i1u1tyb6mfivhnw2fqhhsrim675gurrw8g1zegdwomix9xj91"
     socrata_database_id = "gzfg-8xtp"
     dataset_url = f"https://data.kingcounty.gov/resource/{socrata_database_id}.json"
     socrataUserPw = (f"{socrata_api_id}:{socrata_api_secret}").encode('utf-8')
@@ -196,15 +210,7 @@ def last_data(n_clicks, metadata):
     Input('refresh-button', 'n_clicks')
 )
 def create_battery_graph(metadata, telemetry, last_discharge_data, n_clicks):
-    #metadata = pd.read_json(StringIO(metadata), orient="split")
-    #telemetry = pd.read_json(StringIO(telemetry), orient="split")
-    #last_discharge_data = pd.read_json(StringIO(last_discharge_data), orient="split")
     
-    #metadata = pd.read_json(metadata, orient="split")
-    #telemetry = pd.read_json(telemetry, orient="split")
-    #last_discharge_data = pd.read_json(last_discharge_data, orient="split")
-
-    #df = pd.DataFrame(data)
     if metadata and telemetry and last_discharge_data:
         metadata = pd.read_json(StringIO(metadata), orient="split")
         telemetry = pd.read_json(StringIO(telemetry), orient="split")
@@ -252,14 +258,17 @@ def create_battery_graph(metadata, telemetry, last_discharge_data, n_clicks):
             xanchor="center",
             x=0.5  # Center horizontally
         ),
-        autosize=True,
+        autosize=False,  # Disable autosizing to set a custom height
+        height = 1000,
+         #
         margin=dict(l=0, r=0, t=0, b=0),
-        #mapbox_style="open-street-map"  # Add map style if not already defined
+        #mapbox_style=py"open-street-map"  # Add map style if not already defined
         )
         return fig
-
+        
     else:
         return dash.no_update
+        
 
 if __name__ == '__main__':
     app.run_server(debug=False)
