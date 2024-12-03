@@ -6,8 +6,8 @@ import base64
 from urllib.parse import urlencode
 from datetime import datetime, timedelta
 import plotly.express as px
-from plotly import graph_objs as go
-from plotly.graph_objs import *
+#from plotly import graph_objs as go
+#from plotly.graph_objs import *
 
 #import plotly.graph_objects as go
 import dash
@@ -154,6 +154,7 @@ def telemetry_status(metadata):
             df = pd.DataFrame(data)
             df["voltage_date"] = pd.to_datetime(df['voltage_date'])
             df["voltage_date"]  = df["voltage_date"].dt.strftime('%Y-%m-%d %H:%M')
+           
             df = df.to_json(orient="split")
             return df
         else:
@@ -173,8 +174,8 @@ def last_data(metadata, parameter):
     if metadata and parameter and parameter == "discharge":
         #metadata = pd.DataFrame(metadata)
         #metadata = pd.read_json(metadata, orient="split")
-        metadata = pd.read_json(StringIO(metadata), orient="split")
-        site_list = metadata["site"].tolist()
+        #metadata = pd.read_json(StringIO(metadata), orient="split")
+        #site_list = metadata["site"].tolist()
         
 
         #socrata_api_id = "37ja57noqzsdkkeo5ox34pfzm"
@@ -186,14 +187,28 @@ def last_data(metadata, parameter):
         headers = {'accept': '*/*', 'Authorization': 'Basic ' + base64AuthToken.decode('utf-8')}
 
     
-        today = datetime.now()
-        yesterday = today - timedelta(days=2)
+        
+        today = datetime.now() + timedelta(hours=2)
+
+        yesterday = datetime.now() - timedelta(hours=12)
+        print("today: ", today, " yesterday: ", yesterday)
+        #query_params = {
+        #    "$select": f"site_id as site, datetime as last_log, corrected_data as {parameter}",
+        #    "$where": f"parameter == '{parameter}' AND last_log > '{yesterday.strftime('%Y-%m-%d %h:%m')}' AND last_log < '{today.strftime('%Y-%m-%d %h:%m')}'",
+            
+            #"$group": "site"
+            
+        #}
+
         query_params = {
             "$select": f"site_id as site, datetime as last_log, corrected_data as {parameter}",
-            "$where": f"parameter == '{parameter}' AND last_log >= '{yesterday.strftime('%Y-%m-%d')}' AND last_log < '{today.strftime('%Y-%m-%d')}'",
+            "$where": f"parameter == '{parameter}' AND last_log >= '{yesterday.strftime('%Y-%m-%d')}'",
+            "$limit": "10000",
+            
             #"$group": "site"
             
         }
+       
         
         #"$where": f"last_log >= '{yesterday.strftime('%Y-%m-%d')}' AND last_log < '{today.strftime('%Y-%m-%d')}'"
         #"$where": f"datetime >= '{yesterday.strftime('%Y-%m-%d')}' AND datetime < '{today.strftime('%Y-%m-%d')}'"
@@ -205,16 +220,25 @@ def last_data(metadata, parameter):
             data = response.json()
             
             df = pd.DataFrame(data)
-            df["last_log"] = pd.to_datetime(df['last_log'])
-            df = df.loc[df.groupby('site')['last_log'].idxmax()]
-            
-            df["last_log"]  = df["last_log"].dt.strftime('%Y-%m-%d %H:%M')
             print("int discharge df")
             print(df)
+            print(df.loc[df["site"] == "68A"])
+            df["last_log"] = pd.to_datetime(df['last_log'])
+            max_last_log = df.groupby('site')['last_log'].max().reset_index()
+
+            # Merge to get the corresponding `discharge` values
+            df = pd.merge(max_last_log, df, on=['site', 'last_log'], how='left')
+            print("int discharge df")
+            
+            print(df.loc[df["site"] == "68A"])
+
+            df["last_log"]  = df["last_log"].dt.strftime('%Y-%m-%d %H:%M')
+          
         
             df = df.to_json(orient="split")
             return df
         else:
+            print(response)
             return dash.no_update
     else:
         return dash.no_update
@@ -236,13 +260,13 @@ def create_battery_graph(metadata, telemetry, last_data, parameter):
         telemetry = pd.read_json(StringIO(telemetry), orient="split")
         df = metadata.merge(telemetry, on="site", how = "left")
     
-        print("base data")
-        print(df)
+        #print("base data")
+        #print(df)
         if last_data and parameter == "discharge":
             last_data = pd.read_json(StringIO(last_data), orient="split")
             df = last_data.merge(df, on="site", how = "left") # left would include all sides and discharge data
-            print("discharge")
-            print(df)
+            #print("discharge")
+            #print(df)
         df = df.fillna("")
         
        
@@ -264,25 +288,7 @@ def create_battery_graph(metadata, telemetry, last_data, parameter):
         df['color_category'] = pd.to_numeric(df['color_category'], errors='coerce')
 
     
-        
-        """
-           "< 11.8": "darkred",
-                "< 12": "red",
-                "< 12.2": "orange",
-                "< 12.4": "yellow",
-                "< 12.6": "yellowgreen",
-                "< 13": "green",
-                "13.0 +": "forestgreen"},"""
-        #fig = px.scatter(battery_site_status, y="latitude", x="longitude", color="battery_volts")
-                            
-        #color_discrete_map={
-        #                         "grey": "grey",
-        #                      "< 11.5": "red",
-        #                      "< 12": "darkred",
-        #                      "< 12.3": "darkorange",
-        #                      "< 12.5": "orange",
-        #                         "12.5 +": "blue",
-        #                     },
+       
         if "discharge" in df.columns:
             hover_data = {"discharge": True, "last_log": True, "voltage_date": False, "battery_volts": True, "latitude": False, "longitude": False, "color_category": False}
         if not "discharge" in df.columns:
@@ -322,3 +328,4 @@ def create_battery_graph(metadata, telemetry, last_data, parameter):
 
 if __name__ == '__main__':
     app.run_server(debug=False)
+    
