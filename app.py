@@ -191,7 +191,7 @@ def last_data(metadata, parameter):
         today = datetime.now() + timedelta(hours=2)
 
         yesterday = datetime.now() - timedelta(hours=12)
-        print("today: ", today, " yesterday: ", yesterday)
+        #print("today: ", today, " yesterday: ", yesterday)
         #query_params = {
         #    "$select": f"site_id as site, datetime as last_log, corrected_data as {parameter}",
         #    "$where": f"parameter == '{parameter}' AND last_log > '{yesterday.strftime('%Y-%m-%d %h:%m')}' AND last_log < '{today.strftime('%Y-%m-%d %h:%m')}'",
@@ -220,17 +220,17 @@ def last_data(metadata, parameter):
             data = response.json()
             
             df = pd.DataFrame(data)
-            print("int discharge df")
-            print(df)
-            print(df.loc[df["site"] == "68A"])
+            #print("int discharge df")
+            #print(df)
+            #print(df.loc[df["site"] == "68A"])
             df["last_log"] = pd.to_datetime(df['last_log'])
             max_last_log = df.groupby('site')['last_log'].max().reset_index()
 
             # Merge to get the corresponding `discharge` values
             df = pd.merge(max_last_log, df, on=['site', 'last_log'], how='left')
-            print("int discharge df")
+            #print("int discharge df")
             
-            print(df.loc[df["site"] == "68A"])
+            #print(df.loc[df["site"] == "68A"])
 
             df["last_log"]  = df["last_log"].dt.strftime('%Y-%m-%d %H:%M')
           
@@ -238,7 +238,7 @@ def last_data(metadata, parameter):
             df = df.to_json(orient="split")
             return df
         else:
-            print(response)
+            #print(response)
             return dash.no_update
     else:
         return dash.no_update
