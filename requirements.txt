@@ -7,3 +7,4 @@ datetime
 plotly==5.24.0
 dash
 python-dotenv
+zoneinfo
