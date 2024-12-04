@@ -221,17 +221,13 @@ def last_data(metadata, parameter):
             data = response.json()
             
             df = pd.DataFrame(data)
-            print("int discharge df")
-            print(df)
-            print(df.loc[df["site"] == "68A"])
+          
             df["last_log"] = pd.to_datetime(df['last_log'])
             max_last_log = df.groupby('site')['last_log'].max().reset_index()
 
             # Merge to get the corresponding `discharge` values
             df = pd.merge(max_last_log, df, on=['site', 'last_log'], how='left')
-            print("int discharge df")
-            
-            print(df.loc[df["site"] == "68A"])
+           
 
             df["last_log"]  = df["last_log"].dt.strftime('%Y-%m-%d %H:%M')
           
@@ -239,7 +235,7 @@ def last_data(metadata, parameter):
             df = df.to_json(orient="split")
             return df
         else:
-            print(response)
+           
             return dash.no_update
     else:
         return dash.no_update
