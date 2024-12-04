@@ -152,7 +152,7 @@ def telemetry_status(metadata):
         if response.status_code == 200:
             data = response.json()
             df = pd.DataFrame(data)
-            print(df.sort_values("voltage_date"))
+           
             #df["voltage_date"] = pd.to_datetime(df['voltage_date'])
             #df["voltage_date"]  = df["voltage_date"].dt.strftime('%Y-%m-%d %H:%M')
            
