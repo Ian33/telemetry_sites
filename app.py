@@ -15,6 +15,7 @@ from dash import dcc, html
 from dash.dependencies import Input, Output, State
 from io import StringIO
 import os
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 # py/python -m venv .venv
@@ -139,8 +140,9 @@ def telemetry_status(metadata):
         base64AuthToken = base64.b64encode(socrataUserPw)
         headers = {'accept': '*/*', 'Authorization': 'Basic ' + base64AuthToken.decode('utf-8')}
 
-        today = datetime.now()
-        yesterday = today - timedelta(days=1)
+        
+        today = datetime.now().astimezone(ZoneInfo("Etc/GMT+7"))
+        yesterday = datetime.now().astimezone(ZoneInfo("Etc/GMT+7")) - timedelta(days=1)
         query_params = {
             "$select": "site, datetime as voltage_date, battery_volts",
             "$where": f"datetime >= '{yesterday.strftime('%Y-%m-%d')}' AND datetime < '{today.strftime('%Y-%m-%d')}'"
@@ -186,11 +188,11 @@ def last_data(metadata, parameter):
         base64AuthToken = base64.b64encode(socrataUserPw)
         headers = {'accept': '*/*', 'Authorization': 'Basic ' + base64AuthToken.decode('utf-8')}
 
-    
+        today = datetime.now().astimezone(ZoneInfo("Etc/GMT+7"))
         
-        today = datetime.now() + timedelta(hours=2)
 
-        yesterday = datetime.now() - timedelta(hours=12)
+        yesterday = datetime.now().astimezone(ZoneInfo("Etc/GMT+7")) - timedelta(hours=12)
+       
         #print("today: ", today, " yesterday: ", yesterday)
         #query_params = {
         #    "$select": f"site_id as site, datetime as last_log, corrected_data as {parameter}",
