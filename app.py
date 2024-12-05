@@ -174,12 +174,11 @@ def telemetry_status(metadata):
 )
 def last_data(metadata, parameter):
     if metadata and parameter and parameter == "discharge":
-        #metadata = pd.DataFrame(metadata)
-        #metadata = pd.read_json(metadata, orient="split")
-        #metadata = pd.read_json(StringIO(metadata), orient="split")
-        #site_list = metadata["site"].tolist()
         
-
+        metadata = pd.read_json(StringIO(metadata), orient="split")
+        site_list = metadata["site"].tolist()
+        site_list = ", ".join(map(str, site_list))
+       
         #socrata_api_id = "37ja57noqzsdkkeo5ox34pfzm"
         #socrata_api_secret = "4i1u1tyb6mfivhnw2fqhhsrim675gurrw8g1zegdwomix9xj91"
         socrata_database_id = "hkim-5ysi"
@@ -191,29 +190,21 @@ def last_data(metadata, parameter):
         today = datetime.now().astimezone(ZoneInfo("Etc/GMT+7"))
         
 
-        yesterday = datetime.now().astimezone(ZoneInfo("Etc/GMT+7")) - timedelta(hours=12)
-       
-        #print("today: ", today, " yesterday: ", yesterday)
-        #query_params = {
-        #    "$select": f"site_id as site, datetime as last_log, corrected_data as {parameter}",
-        #    "$where": f"parameter == '{parameter}' AND last_log > '{yesterday.strftime('%Y-%m-%d %h:%m')}' AND last_log < '{today.strftime('%Y-%m-%d %h:%m')}'",
-            
-            #"$group": "site"
-            
-        #}
+        yesterday = datetime.now().astimezone(ZoneInfo("Etc/GMT+7"))
+        yesterday = yesterday - timedelta(hours=24)
 
+      
+       
+        # this is the working version
         query_params = {
             "$select": f"site_id as site, datetime as last_log, corrected_data as {parameter}",
             "$where": f"parameter == '{parameter}' AND last_log >= '{yesterday.strftime('%Y-%m-%d')}'",
-            "$limit": "10000",
+            "$limit": "50000",}
             
-            #"$group": "site"
-            
-        }
-       
+      
+           
+
         
-        #"$where": f"last_log >= '{yesterday.strftime('%Y-%m-%d')}' AND last_log < '{today.strftime('%Y-%m-%d')}'"
-        #"$where": f"datetime >= '{yesterday.strftime('%Y-%m-%d')}' AND datetime < '{today.strftime('%Y-%m-%d')}'"
         encoded_query = urlencode(query_params)
         dataset_url = f"{dataset_url}?{encoded_query}"
         
@@ -222,17 +213,15 @@ def last_data(metadata, parameter):
             data = response.json()
             
             df = pd.DataFrame(data)
-            #print("int discharge df")
-            #print(df)
-            #print(df.loc[df["site"] == "68A"])
-            df["last_log"] = pd.to_datetime(df['last_log'])
-            max_last_log = df.groupby('site')['last_log'].max().reset_index()
-
-            # Merge to get the corresponding `discharge` values
-            df = pd.merge(max_last_log, df, on=['site', 'last_log'], how='left')
-            #print("int discharge df")
             
-            #print(df.loc[df["site"] == "68A"])
+            
+            
+            df["last_log"] = pd.to_datetime(df['last_log'])
+            
+            max_last_log = df.groupby('site')['last_log'].max().reset_index()
+            
+            df = pd.merge(max_last_log, df, on=['site', 'last_log'], how='left')
+            
 
             df["last_log"]  = df["last_log"].dt.strftime('%Y-%m-%d %H:%M')
           
@@ -240,7 +229,7 @@ def last_data(metadata, parameter):
             df = df.to_json(orient="split")
             return df
         else:
-            #print(response)
+            
             return dash.no_update
     else:
         return dash.no_update
@@ -267,8 +256,8 @@ def create_battery_graph(metadata, telemetry, last_data, parameter):
         if last_data and parameter == "discharge":
             last_data = pd.read_json(StringIO(last_data), orient="split")
             df = last_data.merge(df, on="site", how = "left") # left would include all sides and discharge data
-            #print("discharge")
-            #print(df)
+
+           
         df = df.fillna("")
         
        
